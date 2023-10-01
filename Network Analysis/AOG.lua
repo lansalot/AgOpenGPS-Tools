@@ -1,5 +1,7 @@
 -- TODO: dialog box to enter stuff wireshark can't know about (eg lightbar line distance)
 
+-- Place in \program filew\wireshark\plugins
+
 
 AOGProtocol_proto = Proto("AgOpenGPS", "AgOpenGPS Protocol")
 RTCMProtocol_proto = Proto("AgOpenGPSRTCM", "AgOpenGPS RTCM Protocol")
@@ -99,7 +101,9 @@ local AOGFields = {
 
     genericIP = ProtoField.ipv4("GenericIP.IPv4", "IPv4", base.DEC),
     genericSubnet = ProtoField.ipv4("GenericIP.IPSubnet", "Subnet", base.DEC),
-    genericShortIPRange = ProtoField.string("GenericIP.IPSubnet", "Subnet", base.STRING)
+    genericShortIPRange = ProtoField.string("GenericIP.IPSubnet", "Subnet", base.STRING),
+
+    freeFormMessage = ProtoField.string("Freeform.message", "Message", base.STRING)
 }
 
 FixQuality = {
@@ -212,7 +216,6 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
     local byte2 = buffer(1, 1):uint()
     local MajorPGN = buffer(2, 1):uint()
     local MinorPGN = buffer(3, 1):uint()
-
 
     if (byte1 == 0x24 and byte2 == 0x50 and MinorPGN == 0x4e) then -- PANDA
         local PandaString = buffer(0):string()
@@ -501,7 +504,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 subtree:add(AOGFields.genericIP, buffer(5,4))
                 --print("7e says " .. buffer(5,4))
                 --subtree:add(AOGFields.genericSubnet, buffer(9))
-                pinfo.cols.info = "Subnet Scan Reply"
+                pinfo.cols.info2 = "Subnet Scan Reply"
             end
         end
 
@@ -514,6 +517,9 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
         if MajorPGN == 0x41 then -- 65
             subtree:add(SteerData.Speed, buffer(4, 2))
         end
+    elseif byte1 == 0x80 and byte2 == 0x99 then -- freeform message from Teensy!
+        pinfo.cols.info = "AOG: " .. buffer(2,buffer:len() - 2):string()
+        subtree:add(AOGFields.freeFormMessage, buffer(2,buffer:len() - 2))
     end
     -- Set the protocol description in the packet details pane
     pinfo.cols.protocol = AOGProtocol_proto.name
