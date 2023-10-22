@@ -1,0 +1,7 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/AgDiag/Binaries
+/AgDiag/Source/obj/Debug
+/AgDiag/.vs/AgDiag
