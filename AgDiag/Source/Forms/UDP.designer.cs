@@ -31,13 +31,6 @@ namespace AgDiag
 
         private CTraffic traffic = new CTraffic();
 
-        //IP address and port that AgIO listens on, we send to it
-        //private IPEndPoint epAgIO = new IPEndPoint(IPAddress.Parse("127.0.0.1"),17777);
-        //private IPEndPoint epAgOpenGPS = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 15555);
-
-        // Initialise the IPEndPoint for async listener!
-        private EndPoint epSender = new IPEndPoint(IPAddress.Loopback, 0);
-
         // Data stream
         private byte[] buffer = new byte[1024];
 
@@ -46,15 +39,8 @@ namespace AgDiag
         {
             try //loopback
             {
-                // Initialise the socket
-                loopBackSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                loopBackSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
-                loopBackSocket.Bind(new IPEndPoint(IPAddress.Loopback, 16666));
-                loopBackSocket.BeginReceiveFrom(buffer, 0, buffer.Length, SocketFlags.None, ref epSender, new AsyncCallback(ReceiveDataLoopAsync), null);
-
                 udpAGIO.BeginReceive(ReceiveDataAGIO, AgIOState);
                 udpAOG.BeginReceive(ReceiveDataAOG, AOGState);
-
             }
             catch (Exception ex)
             {
@@ -75,13 +61,7 @@ namespace AgDiag
                 int msgLen = receivedData.Length;
                 byte[] localMsg = new byte[msgLen];
                 Array.Copy(buffer, localMsg, msgLen);
-                // Listen for more connections again...
-                if (receivedData[0] == 0x24)
-                {
-                    Console.WriteLine("!");
-                }
                 udpAGIO.BeginReceive(ReceiveDataAGIO, AgIOState);
-
                 BeginInvoke((MethodInvoker)(() => ReceiveFromLoopBack(receivedData)));
             }
             catch (Exception)
@@ -99,81 +79,16 @@ namespace AgDiag
                 IPEndPoint remoteEndPoint = ((UdpState)asyncResult.AsyncState).EndPoint;
                 byte[] receivedData = udpAOG.EndReceive(asyncResult, ref remoteEndPoint);
                 int msgLen = receivedData.Length;
-                if (receivedData[3] == 0xfc)
-                {
-                    Console.WriteLine("fc");
-                }
                 byte[] localMsg = new byte[msgLen];
                 Array.Copy(buffer, localMsg, msgLen);
-                // Listen for more connections again...
                 udpAOG.BeginReceive(ReceiveDataAOG, AOGState);
-
                 BeginInvoke((MethodInvoker)(() => ReceiveFromLoopBack(receivedData)));
-
             }
             catch (Exception)
             {
                 //MessageBox.Show("ReceiveData Error: " + ex.Message, "UDP Server", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        private void ReceiveDataLoopAsync(IAsyncResult asyncResult)
-        {
-            try
-            {
-                // Receive all data
-                int msgLen = loopBackSocket.EndReceiveFrom(asyncResult, ref epSender);
-
-                byte[] localMsg = new byte[msgLen];
-                Array.Copy(buffer, localMsg, msgLen);
-                // Listen for more connections again...
-                loopBackSocket.BeginReceiveFrom(buffer, 0, buffer.Length, SocketFlags.None, ref epSender, new AsyncCallback(ReceiveDataLoopAsync), null);
-
-                BeginInvoke((MethodInvoker)(() => ReceiveFromLoopBack(localMsg)));
-            }
-            catch (Exception)
-            {
-                //MessageBox.Show("ReceiveData Error: " + ex.Message, "UDP Server", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        //loopback functions
-        #region Send And Receive
-
-        private void SendToAgIO(byte[] byteData)
-        {
-            try
-            {
-                if (byteData.Length != 0)
-                {
-                    traffic.cntrPGNToAOG += byteData.Length;
-
-                    // Send packet to the zero
-                    loopBackSocket.BeginSendTo(byteData, 0, byteData.Length, SocketFlags.None, epAgIO, new AsyncCallback(SendDataLoopAsync), null);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Send Error: " + ex.Message, "UDP Client", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void SendToAgOpenGPS(byte[] byteData)
-        {
-            try
-            {
-                if (byteData.Length != 0)
-                {
-                    traffic.cntrPGNToAOG += byteData.Length;
-
-                    // Send packet to the zero
-                    loopBackSocket.BeginSendTo(byteData, 0, byteData.Length, SocketFlags.None, epAgOpenGPS, new AsyncCallback(SendDataLoopAsync), null);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Send Error: " + ex.Message, "UDP Client", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         private String ReturnScaledString(object value, Double scale)
         {
             switch (value)
@@ -295,21 +210,6 @@ namespace AgDiag
             lblAOG.Text = traffic.AOGPackets.ToString();
             lblAGIO.Text = traffic.AGIOPackets.ToString();  
         }
-
-        public void SendDataLoopAsync(IAsyncResult asyncResult)
-        {
-            try
-            {
-                loopBackSocket.EndSend(asyncResult);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("SendData Error: " + ex.Message, "UDP Server", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-
-        #endregion
 
     }
 
