@@ -45,11 +45,6 @@ namespace AgDiag
             }
             return sb.ToString();
         }
-
-        private void btnDeviceManager_Click(object sender, EventArgs e)
-        {
-            Process.Start("devmgmt.msc");
-        }
         private void timer1_Tick(object sender, EventArgs e)
         {
             secondsSinceStart = (DateTime.Now - Process.GetCurrentProcess().StartTime).TotalSeconds;
@@ -141,19 +136,12 @@ namespace AgDiag
         {
 
             timer1.Enabled = true;
-            LoadLoopback();
+            ConnectSockets();
         }
 
         private void FormLoop_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (loopBackSocket != null)
-            {
-                try
-                {
-                    loopBackSocket.Shutdown(SocketShutdown.Both);
-                }
-                finally { loopBackSocket.Close(); }
-            }
+
         }
 
         private void DoTraffic()

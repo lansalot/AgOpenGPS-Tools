@@ -35,7 +35,7 @@ namespace AgDiag
         private byte[] buffer = new byte[1024];
 
 
-        private void LoadLoopback()
+        private void ConnectSockets()
         {
             try //loopback
             {
@@ -142,7 +142,7 @@ namespace AgDiag
                                 "\r\nimuHead: " + ReturnScaledString(BitConverter.ToUInt16(data, 48), 0.1) +
                                 " imuRoll: " + ReturnScaledString(BitConverter.ToInt16(data, 50), 0.1) +
                                 "\r\nimuPitch: " + ReturnScaledString(BitConverter.ToInt16(data, 52), 1);
-                                //" imuYaw: " + ReturnScaledString(BitConverter.ToInt16(data, 54), 0.1);
+                            //" imuYaw: " + ReturnScaledString(BitConverter.ToInt16(data, 54), 0.1);
 
 
                             break;
@@ -163,7 +163,6 @@ namespace AgDiag
                             {
                                 asModule.pgn[i] = data[i];
                             }
-
                             break;
                         }
                     case 0xfe: // 254
@@ -173,7 +172,6 @@ namespace AgDiag
                             {
                                 asData.pgn[i] = data[i];
                             }
-
                             break;
                         }
                     case 0xfc: // 252
@@ -183,7 +181,6 @@ namespace AgDiag
                             {
                                 asSet.pgn[i] = data[i];
                             }
-
                             break;
                         }
                     case 0xfb: // 251
@@ -193,7 +190,6 @@ namespace AgDiag
                             {
                                 asConfig.pgn[i] = data[i];
                             }
-
                             break;
                         }
 
@@ -208,7 +204,7 @@ namespace AgDiag
                 traffic.cntr += data.Length;
             }
             lblAOG.Text = traffic.AOGPackets.ToString();
-            lblAGIO.Text = traffic.AGIOPackets.ToString();  
+            lblAGIO.Text = traffic.AGIOPackets.ToString();
         }
 
     }
