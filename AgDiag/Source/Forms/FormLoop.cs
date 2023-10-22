@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Windows.Forms;
 
 namespace AgDiag
@@ -35,17 +38,12 @@ namespace AgDiag
 
         private static string ByteArrayToHex(byte[] barray)
         {
-            char[] c = new char[barray.Length * 3];
-            byte b;
-            for (int i = 0; i < barray.Length; ++i)
+            StringBuilder sb = new StringBuilder(barray.Length * 3);
+            foreach (byte by in barray)
             {
-                b = ((byte)(barray[i] >> 4));
-                c[i * 3] = (char)(b > 9 ? b + 0x37 : b + 0x30);
-                b = ((byte)(barray[i] & 0xF));
-                c[i * 3 + 1] = (char)(b > 9 ? b + 0x37 : b + 0x30);
-                c[i * 3 + 2] = (char)0x2D;
+                sb.AppendFormat("{0:x2}-", by);
             }
-            return new string(c);
+            return sb.ToString();
         }
 
         private void btnDeviceManager_Click(object sender, EventArgs e)
@@ -58,6 +56,7 @@ namespace AgDiag
 
             DoTraffic();
 
+            // asData (0xfe / 254)
             if ((asData.pgn[asData.sc1to8] & 1) == 1) lblSection1.BackColor = Color.Green;
             else lblSection1.BackColor = Color.Red;
             if ((asData.pgn[asData.sc1to8] & 2) == 2) lblSection2.BackColor = Color.Green;
@@ -77,20 +76,36 @@ namespace AgDiag
             else lblSection8.BackColor = Color.Red;
 
             lblSpeed.Text = (asData.pgn[asData.speedHi] << 8 | asData.pgn[asData.speedLo]).ToString();
-            lblSetSteerAngle.Text = (asData.pgn[asData.steerAngleHi] << 8 | asData.pgn[asData.steerAngleLo]).ToString();
+            lblSetSteerAngle.Text = ((asData.pgn[asData.steerAngleHi] << 8 | asData.pgn[asData.steerAngleLo]) * 0.01).ToString();
             lblStatus.Text = asData.pgn[asData.status].ToString();
 
             lblSteerDataPGN.Text = ByteArrayToHex(asData.pgn);
 
-            //from autosteer  module
-            lblSteerAngleActual.Text = ((Int16)((asModule.pgn[asModule.actualHi] << 8)
-                + asModule.pgn[asModule.actualLo])).ToString();
+            // asModule (0xfd / 253)
+            lblSteerAngleActual.Text = (((Int16)((asModule.pgn[asModule.actualHi] << 8)
+                + asModule.pgn[asModule.actualLo])) * 0.01).ToString();
 
-            lblHeading.Text = ((Int16)((asModule.pgn[asModule.headHi] << 8)
-                + asModule.pgn[asModule.headLo])).ToString();
+            Int16 tmp = ((Int16)((asModule.pgn[asModule.headHi] << 8)
+                + asModule.pgn[asModule.headLo]));
+            if (tmp != 9999)
+            {
+                lblHeading.Text = (tmp * 0.1).ToString();
+            }
+            else
+            {
+                lblHeading.Text = "N/A";
+            }
 
-            lblRoll.Text = ((Int16)((asModule.pgn[asModule.rollHi] << 8)
-                + asModule.pgn[asModule.rollLo])).ToString();
+            tmp = ((Int16)((asModule.pgn[asModule.rollHi] << 8)
+                + asModule.pgn[asModule.rollLo]));
+            if (tmp != 8888)
+            {
+                lblRoll.Text = (tmp * 0.1).ToString();
+            }
+            else
+            {
+                lblRoll.Text = "N/A";
+            }
 
             lblPWM.Text = (asModule.pgn[asModule.pwm]).ToString();
 
@@ -104,7 +119,7 @@ namespace AgDiag
 
             lblPGNFromAutosteerModule.Text = ByteArrayToHex(asModule.pgn);
 
-            //Autosteer settings
+            //asSet (0xfc / 252)
             lblPGNSteerSettings.Text = ByteArrayToHex(asSet.pgn);
             lblP.Text = asSet.pgn[asSet.gainProportional].ToString();
             lblHiPWM.Text = asSet.pgn[asSet.highPWM].ToString();
@@ -115,7 +130,7 @@ namespace AgDiag
             lblOffset.Text = (asSet.pgn[asSet.wasOffsetHi] << 8 | asSet.pgn[asSet.wasOffsetLo]).ToString();
 
 
-            //autosteer config bytes
+            //asSet (0xfb / 251)
             lblPGNAutoSteerConfig.Text = ByteArrayToHex(asConfig.pgn);
             lblSet0.Text = asConfig.pgn[asConfig.set0].ToString();
             lblPulseCount.Text = asConfig.pgn[asConfig.maxPulse].ToString();

@@ -41,6 +41,7 @@ namespace AgDiag
             this.lblSection7 = new System.Windows.Forms.Label();
             this.lblSection8 = new System.Windows.Forms.Label();
             this.panelBack = new System.Windows.Forms.Panel();
+            this.label32 = new System.Windows.Forms.Label();
             this.lblAGIO = new System.Windows.Forms.Label();
             this.panel5 = new System.Windows.Forms.Panel();
             this.label24 = new System.Windows.Forms.Label();
@@ -103,7 +104,6 @@ namespace AgDiag
             this.lblPulseCount = new System.Windows.Forms.Label();
             this.label22 = new System.Windows.Forms.Label();
             this.lblMinSpeed = new System.Windows.Forms.Label();
-            this.label32 = new System.Windows.Forms.Label();
             this.panelBack.SuspendLayout();
             this.panel5.SuspendLayout();
             this.panel4.SuspendLayout();
@@ -238,6 +238,19 @@ namespace AgDiag
             this.panelBack.Name = "panelBack";
             this.panelBack.Size = new System.Drawing.Size(476, 584);
             this.panelBack.TabIndex = 182;
+            // 
+            // label32
+            // 
+            this.label32.AutoSize = true;
+            this.label32.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(50)))));
+            this.label32.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label32.ForeColor = System.Drawing.Color.White;
+            this.label32.Location = new System.Drawing.Point(348, 560);
+            this.label32.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label32.Name = "label32";
+            this.label32.Size = new System.Drawing.Size(69, 24);
+            this.label32.TabIndex = 254;
+            this.label32.Text = "AGIO: ";
             // 
             // lblAGIO
             // 
@@ -585,7 +598,7 @@ namespace AgDiag
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(55, 48);
             this.label3.TabIndex = 192;
-            this.label3.Text = "From\r\nAgIO";
+            this.label3.Text = "From\r\nAOG";
             // 
             // label5
             // 
@@ -687,9 +700,9 @@ namespace AgDiag
             this.lblSteerAngleActual.Location = new System.Drawing.Point(181, 30);
             this.lblSteerAngleActual.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.lblSteerAngleActual.Name = "lblSteerAngleActual";
-            this.lblSteerAngleActual.Size = new System.Drawing.Size(55, 24);
+            this.lblSteerAngleActual.Size = new System.Drawing.Size(31, 24);
             this.lblSteerAngleActual.TabIndex = 194;
-            this.lblSteerAngleActual.Text = "12.3";
+            this.lblSteerAngleActual.Text = "!!!";
             // 
             // lblHeading
             // 
@@ -1081,19 +1094,6 @@ namespace AgDiag
             this.lblMinSpeed.Size = new System.Drawing.Size(55, 24);
             this.lblMinSpeed.TabIndex = 244;
             this.lblMinSpeed.Text = "12.3";
-            // 
-            // label32
-            // 
-            this.label32.AutoSize = true;
-            this.label32.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(50)))));
-            this.label32.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label32.ForeColor = System.Drawing.Color.White;
-            this.label32.Location = new System.Drawing.Point(348, 560);
-            this.label32.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label32.Name = "label32";
-            this.label32.Size = new System.Drawing.Size(69, 24);
-            this.label32.TabIndex = 254;
-            this.label32.Text = "AGIO: ";
             // 
             // FormLoop
             // 

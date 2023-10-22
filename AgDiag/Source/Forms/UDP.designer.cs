@@ -129,7 +129,7 @@ namespace AgDiag
                 switch (data[3])
                 {
                     //the lat lon from AOG
-                    case 0xD6:
+                    case 0xD6: // 214
                         {
                             lblGPS.Text = "Lon: " + BitConverter.ToDouble(data, 5).ToString("N6") +
                                 " Lat: " + BitConverter.ToDouble(data, 13).ToString("N6") +
@@ -147,7 +147,7 @@ namespace AgDiag
 
                             break;
                         }
-                    case 0xD0:
+                    case 0xD0: // 208
                         {
                             int encAngle = BitConverter.ToInt32(data, 5);
                             currentLat = (encAngle / (0x7FFFFFFF / 90.0));
@@ -157,7 +157,7 @@ namespace AgDiag
 
                             break;
                         }
-                    case 253: // 0xfd
+                    case 0xfd: // 253
                         {
                             for (int i = 5; i < data.Length; i++)
                             {
@@ -166,7 +166,7 @@ namespace AgDiag
 
                             break;
                         }
-                    case 254: // 0xfe
+                    case 0xfe: // 254
                         {
 
                             for (int i = 5; i < data.Length; i++)
@@ -176,7 +176,7 @@ namespace AgDiag
 
                             break;
                         }
-                    case 252: // 0xfc
+                    case 0xfc: // 252
                         {
 
                             for (int i = 5; i < data.Length; i++)
@@ -186,7 +186,7 @@ namespace AgDiag
 
                             break;
                         }
-                    case 251: // 0xfb
+                    case 0xfb: // 251
                         {
 
                             for (int i = 5; i < data.Length; i++)
