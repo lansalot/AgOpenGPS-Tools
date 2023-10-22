@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Hello there</h1>
+
+<iframe id="myIframe" src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d17151.211883666245!2d-4.1324901999999994!3d57.49704295!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2suk!4v1697990565995!5m2!1sen!2suk" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+<script>
+    let start = 57.49704;
+    console.log(start);
+
+    function refreshIframe() {
+        start += 0.005; // Increment it by the desired amount
+        let url = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d17151.211883666245!2d-4.1324901999999994!3d${start}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2suk!4v1697990565995!5m2!1sen!2suk`;
+        console.log(url);
+        const iframe = document.getElementById("myIframe");
+        iframe.src = url;
+    }
+    
+    refreshIframe();
+
+    setInterval(refreshIframe, 5000); // 5000ms (5 seconds) between refreshes
+</script>
+
+
+</body>
+</html>
+
+
