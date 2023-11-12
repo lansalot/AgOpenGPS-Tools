@@ -8,5 +8,5 @@ The idea, if I persist with this, is it'll run as a service, disguised, and star
 
 What that something is just yet, not decided. Maybe update a web service with a cosmos backend so I can store say a couple hours worth of "where's my tractor at"?
 
-Sample web page enclosed that just moves a point on a map every 5 seconds. Totally disconnected frmo the tracker of course...
+Sample web page enclosed that just moves a point on a map every 5 seconds. Totally disconnected from the tracker of course...
 
