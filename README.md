@@ -2,7 +2,7 @@
 
 Some tools for AgOpenGPS
 
-
+- AOGTestBench - my attempts at playing with EasyEDA - made a simple hookup board to test AOG, provide terminals and probes for CANBUS sniffing etc
 - AgDiag - an updated version of the AgDiag tool, please log any issues with missing PGNs
 - Network Analysis - a LUA file to decode AOG traffic in wireshark
 - STLs - various AOG-related 3d print stuff I've found or made myself
