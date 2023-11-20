@@ -2,7 +2,7 @@
 
 # Tracker
 
-So, for those of us that are worried about theft, I thought I might make a little program I can install on my tablet, so it will update a public service (eg, perhaps a web service somewhere, send an email on regular interval with location, who knows) and if the kit ever disappears, it'll sing the moment it's turned on again and sees some AOG location data and for this, I thought TRACCAR would be ideal.
+So, for those of us that are worried about theft (or perhaps you just want a cool way to watch the fleet move about), I thought I might make a little program I can install on my tablet, so it will update a public service (eg, perhaps a web service somewhere, send an email on regular interval with location, who knows) and if the kit ever disappears, it'll sing the moment it's turned on again and sees some AOG location data and for this, I thought TRACCAR would be ideal.
 
 Although I'm using TRACCAR, you could change it to do anything you like - send an email, SMS, you name it.
 
@@ -10,16 +10,16 @@ TODO: Build or rent a TRACCAR server from traccar.org if you don't fancy doing o
 
 Register a device in the TRACCAR admin panel and note the ID you choose for it. Could be the registration plate on your tractor, anything.
 
-Download and compile this solution (I'll add a Releases when I get round to it, along with prettier instructions)
+Grab the latest release here: https://github.com/lansalot/AgOpenGPS-Tools/releases
 
 
 ## How it works
 
-The program is installed (it doesn't run from where you saved or compiled the file to) and a scheduled task to Run on Startup is created. A small INI file is saved with config details in the same location. That's pretty much it. Obviously, given this isn't supposed to be easy for thieves to find, you'll want to pick somewhere to bury it, deep in the filesystem.
+The program is installed (it doesn't run from where you saved or compiled the file to) and a scheduled task to Run on Startup is created. A small INI file is saved with config details in the same location. That's pretty much it. If you're building this to help with theft, obviously, given this isn't supposed to be easy for thieves to find, you'll want to pick somewhere to bury it, deep in the filesystem. If it's just to watch the fleet drive about, you don't need to be so sneaky.
 
-Find the EXE your compilation produces (I'll sort Releases out soon), and from an elevated command prompt:
+Expand the Release zip file to anywhere (here shown as c:\temp), and from an elevated command prompt:
 
-    C:\temp>.\tracker /?
+    C:\temp> tracker /?
     Tracker - help
 
     tracker /install <id> <path to tracker.exe> <scheduled task path> <baseurl>
