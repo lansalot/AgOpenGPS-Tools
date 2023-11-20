@@ -9,7 +9,7 @@ on:
     paths:
       - 'Tracker/Tracker/**'
     paths-ignore:
-      - **.md
+      - '**.md'
   workflow_dispatch:
 
 env:
