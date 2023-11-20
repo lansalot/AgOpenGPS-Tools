@@ -7,7 +7,9 @@ on:
     branches:
       - main
     paths:
-      - 'Tracker/**'
+      - 'Tracker/Tracker/**'
+    paths-ignore:
+      - **.md
   workflow_dispatch:
 
 env:
