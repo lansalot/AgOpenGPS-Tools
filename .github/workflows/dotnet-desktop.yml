@@ -8,8 +8,6 @@ on:
       - main
     paths:
       - 'Tracker/Tracker/**'
-    paths-ignore:
-      - '**.md'
   workflow_dispatch:
 
 env:
