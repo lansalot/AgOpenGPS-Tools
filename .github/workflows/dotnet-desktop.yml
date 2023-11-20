@@ -83,7 +83,7 @@ jobs:
       
     - name: Build Artifact Tracker
       shell: powershell
-      run: Compress-Archive -Path Tracker\Tracker\bin\Release\Tracker.exe -DestinationPath Tracker.zip -Force
+      run: Compress-Archive -Path Tracker\Tracker\obj\Release\Tracker.exe -DestinationPath Tracker.zip -Force
 
     - name: Create Release
       id: create_release
