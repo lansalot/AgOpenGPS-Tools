@@ -12,6 +12,7 @@ using Microsoft.Win32;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 
 namespace Tracker
 {
@@ -41,9 +42,12 @@ namespace Tracker
         private UdpState AgIOState;
         private DateTime lastUpdate = DateTime.Now;
         TimeSpan timeSinceLastUpdate;
+        private static bool interactive = true;
         private static string TrackerID = "";
         private static string trackerURL = "";
-        private int sendInterval = 30;
+        private static int sendInterval = 300;
+        private static string iniFile = "";
+
         private static string taskXML = @"<?xml version='1.0' encoding='UTF-16'?>
 <Task version='1.2' xmlns='http://schemas.microsoft.com/windows/2004/02/mit/task'>
   <RegistrationInfo>
@@ -108,6 +112,111 @@ tracker /interactive
             }
         }
 
+        static bool IsRunningWithElevatedPrivileges()
+        {
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new WindowsPrincipal(identity);
+
+            // Check if the current user is in the Administrators group
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        private static void ParseCMDLine(string[] args)
+        {
+            if (args.Length > 0)
+            {
+                switch (args[0].ToLower())
+                {
+                    case "/install":
+                        if (args.Length == 5)
+                        {
+                            if (!IsRunningWithElevatedPrivileges())
+                            {
+                                Console.WriteLine("You need to run this installation elevated (as admin)");
+                                Environment.Exit(0);
+                            }
+                            string id = args[1];
+                            string path = args[2];
+                            string task = args[3];
+                            string trackerURL = args[4];
+                            string taskName = task.Split('\\').Last();
+                            string xmlFile = path.Replace(".exe", ".xml");
+                            iniFile = path.Replace(".exe", ".ini");
+                            try
+                            {
+                                Console.WriteLine("Copying file to " + path);
+                                File.Copy(Process.GetCurrentProcess().MainModule.FileName, path);
+                            }
+                            catch
+                            {
+                                Console.WriteLine("Failed to copy file to " + path);
+                                Environment.Exit(0);
+                            }
+                            try
+                            {
+                                Console.WriteLine("Importing task");
+                                taskXML = taskXML.Replace("EXENAME", path);
+                                using (StreamWriter writer = new StreamWriter(xmlFile, false, Encoding.Unicode))
+                                {
+                                    writer.Write(taskXML);
+                                }
+                                if (!(RunProcess("c:\\windows\\system32\\schtasks.exe", "/create /tn \"" + task + "\" /xml " + xmlFile)))
+                                {
+                                    Console.WriteLine("Error creating task (are you elevated UAC?) - do it manually.");
+                                    Environment.Exit(0);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Scheduled task created - starting now.");
+                                    RunProcess("c:\\windows\\system32\\schtasks.exe", "/run /tn \"" + task + "\"");
+                                }
+                            }
+                            catch
+                            {
+                                Console.WriteLine("Error writing and/or importing task - do it manually");
+                                Environment.Exit(0);
+                            }
+                            File.WriteAllText(iniFile, id + "\r\n" + trackerURL);
+                            Console.WriteLine("Tracker installed");
+                            Environment.Exit(0);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Incorrect number of arguments - see tracker /help for details");
+                            Environment.Exit(0);
+                        }
+                        break;
+                    case "/uninstall":
+                        if (args.Length != 2)
+                        {
+                            Console.WriteLine("Incorrect number of arguments - see /help for details");
+                            Environment.Exit(0);
+                        }
+                        string utask = args[1];
+
+                        RunProcess("c:\\windows\\system32\\schtasks.exe", "/query /tn \"" + utask + "\" /xml");
+                        if (!RunProcess("c:\\windows\\system32\\schtasks.exe", "/delete /tn \"" + utask + "\" /f"))
+                        {
+                            Console.WriteLine("Error deleting task (are you elevated UAC?) - do it manually.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Task deleted - please remove the above exe yourself.");
+                        }
+                        Environment.Exit(0);
+                        break;
+                    case "/interactive":
+                        interactive = true;
+                        break;
+                    case "/?":
+                    case "/help":
+                        Console.WriteLine(helpString);
+                        Environment.Exit(0);
+                        break;
+                }
+            }
+
+        }
         private static bool RunProcess(string exe, string args)
         {
             Process P = new Process();
@@ -126,98 +235,13 @@ tracker /interactive
             }
             return true;
         }
-        static void Main(string[] args)
+        static void Main(string[] Args)
         {
             IntPtr handle = GetConsoleWindow();
 
-            bool interactive = false;
-            string iniFile = "";
-            if (args.Length > 0)
-            {
-                switch (args[0].ToLower())
-                {
-                    case "/install":
-                        if (args.Length == 5)
-                        {
-                            string id = args[1];
-                            string path = args[2];
-                            string task = args[3];
-                            string trackerURL = args[4];
-                            string taskName = task.Split('\\').Last();
-                            string xmlFile = path.Replace(".exe", ".xml");
-                            iniFile = path.Replace(".exe", ".ini");
-                            try
-                            {
-                                Console.WriteLine("Copying file to " + path);
-                                File.Copy(Process.GetCurrentProcess().MainModule.FileName, path);
-                            }
-                            catch
-                            {
-                                Console.WriteLine("Failed to copy file to " + path);
-                                return;
-                            }
-                            try
-                            {
-                                Console.WriteLine("Importing task");
-                                taskXML = taskXML.Replace("EXENAME", path);
-                                using (StreamWriter writer = new StreamWriter(xmlFile, false, Encoding.Unicode))
-                                {
-                                    writer.Write(taskXML);
-                                }
-                                if (!(RunProcess("c:\\windows\\system32\\schtasks.exe", "/create /tn \"" + task + "\" /xml " + xmlFile)))
-                                {
-                                    Console.WriteLine("Error creating task (are you elevated UAC?) - do it manually.");
-                                    return;
-                                }
-                                else
-                                {
-                                    Console.WriteLine("Scheduled task created - starting now.");
-                                    RunProcess("c:\\windows\\system32\\schtasks.exe", "/run /tn \"" + task + "\"");
-                                }
-                            }
-                            catch
-                            {
-                                Console.WriteLine("Error writing and/or importing task - do it manually");
-                                return;
-                            }
-                            File.WriteAllText(iniFile, id + "\r\n" + trackerURL);
-                            Console.WriteLine("Tracker installed");
-                            return;
-                        }
-                        else
-                        {
-                            Console.WriteLine("Incorrect number of arguments - see /help for details");
-                            return;
-                        }
-                        break;
-                    case "/uninstall":
-                        if (args.Length != 2)
-                        {
-                            Console.WriteLine("Incorrect number of arguments - see /help for details");
-                        }
-                        string utask = args[1];
+            //bool interactive = false;
+            ParseCMDLine(Args);
 
-                        RunProcess("c:\\windows\\system32\\schtasks.exe", "/query /tn \"" + utask + "\" /xml");
-                        if (!RunProcess("c:\\windows\\system32\\schtasks.exe", "/delete /tn \"" + utask + "\" /f"))
-                        {
-                            Console.WriteLine("Error deleting task (are you elevated UAC?) - do it manually.");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Task deleted - please remove the above exe yourself.");
-                        }
-                        return;
-                    case "/interactive":
-                        interactive = true;
-                        break;
-                    case "/?":
-                    case "/help":
-                        Console.WriteLine(helpString);
-                        return;
-                }
-            }
-
-            if (!interactive) ShowWindow(handle, SW_HIDE);
             iniFile = Process.GetCurrentProcess().MainModule.FileName.Replace(".exe", ".ini");
             if (File.Exists(iniFile))
             {
@@ -228,19 +252,20 @@ tracker /interactive
                 }
                 catch
                 {
+                    interactive = true;
                     Console.WriteLine("Error reading parameters from the ini file - what's up with that?");
                     Console.WriteLine("Format should be ID on first line, URL on second line.");
-                    return;
+                    Environment.Exit(0);
                 }
             }
             else
             {
-                Console.WriteLine("You need to configure this first. Do the following:");
-                Console.WriteLine("\tTracker install <ID> <c:\\location\\of\tracker.exe>");
-                Console.ReadLine();
-                return;
+                interactive = true;
+                Console.WriteLine("You need to configure this first. Do Tracker /help for info");
+                Environment.Exit(0);
             }
-            Console.WriteLine("Waiting for data from AOG");
+            if (!interactive) ShowWindow(handle, SW_HIDE);
+            Console.WriteLine("Waiting for data from AOG and time interval " + sendInterval + " to elapse");
             Program program = new Program();
             program.udpAGIO = new UdpClient(new IPEndPoint(IPAddress.Any, 15555));
             program.AgIOState = new UdpState(program.udpAGIO, program.epAgIO);
