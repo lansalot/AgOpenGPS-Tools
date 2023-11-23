@@ -1,5 +1,9 @@
 [![.github/workflows/dotnet-desktop.yml](https://github.com/lansalot/AgOpenGPS-Tools/actions/workflows/dotnet-desktop.yml/badge.svg)](https://github.com/lansalot/AgOpenGPS-Tools/actions/workflows/dotnet-desktop.yml)
 
+
+EDIT: found a bug in this in that it'll lock the AOG port before AOG can get going, and you'll get a UDP error. Will fix this in a bit but for the moment, don't use this. Simple enough, check for AOG running I guess!
+
+
 # Tracker
 
 So, for those of us that are worried about theft (or perhaps you just want a cool way to watch the fleet move about), I thought I might make a little program I can install on my tablet, so it will update a public service (eg, perhaps a web service somewhere, send an email on regular interval with location, who knows) and if the kit ever disappears, it'll sing the moment it's turned on again and sees some AOG location data and for this, I thought TRACCAR would be ideal.
