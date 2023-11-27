@@ -38,7 +38,7 @@ namespace Tracker
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         private const int SW_HIDE = 0;
-        private IPEndPoint epAgIO = new IPEndPoint(IPAddress.Any, 17777);
+        private IPEndPoint epAgIO = new IPEndPoint(IPAddress.Any, 15555);
         private UdpClient udpAGIO;
         private UdpState AgIOState;
         private DateTime lastUpdate = DateTime.Now;
@@ -46,7 +46,7 @@ namespace Tracker
         private static bool interactive = true;
         private static string TrackerID = "";
         private static string trackerURL = "";
-        private static int sendInterval = 300;
+        private static int sendInterval = 5; // should be 300 or so usually
         private static string iniFile = "";
 
         private static string taskXML = @"<?xml version='1.0' encoding='UTF-16'?>
@@ -96,22 +96,10 @@ eg tracker /install yourid c:\windows\system32\altupdate.exe \Microsoft\Windows\
 tracker /uninstall <scheduled task path>
 
 To ensure all is well, run it interactively for a while first and check TRACCAR
-tracker /interactive
+tracker /interactive  [id] [baseurl]
 ";
 
         private byte[] buffer = new byte[1024];
-
-        private void ConnectSockets()
-        {
-            try
-            {
-                udpAGIO.BeginReceive(ReceiveDataAGIO, AgIOState);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-        }
 
         static bool IsRunningWithElevatedPrivileges()
         {
@@ -262,13 +250,31 @@ tracker /interactive
             else
             {
                 interactive = true;
-                Console.WriteLine("You need to configure this first. Do Tracker /help for info");
-                Environment.Exit(0);
+                if (Args.Length == 3)
+                    try
+                    {
+                        TrackerID = Args[1];
+                        trackerURL = Args[2];
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Error parsing arguments for interactive session");
+                        Environment.Exit(1);
+                    }
+                else
+                {
+                    Console.WriteLine("You need to configure this first (or supply argument on command line). Do Tracker /help for info");
+                    Environment.Exit(1);
+                }
             }
             if (!interactive) ShowWindow(handle, SW_HIDE);
             Console.WriteLine("Waiting for data from AOG and time interval " + sendInterval + " to elapse");
             Program program = new Program();
-            program.udpAGIO = new UdpClient(new IPEndPoint(IPAddress.Any, 15555));
+            //program.udpAGIO = new UdpClient(new IPEndPoint(IPAddress.Any, 15555));
+            program.udpAGIO = new UdpClient();
+            program.udpAGIO.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            program.udpAGIO.Client.Bind(program.epAgIO);
+
             program.AgIOState = new UdpState(program.udpAGIO, program.epAgIO);
             program.udpAGIO.BeginReceive(program.ReceiveDataAGIO, program.AgIOState);
             Console.WriteLine("Press any key to exit or let it run showing output");
@@ -282,12 +288,15 @@ tracker /interactive
                 // Receive all data
                 UdpClient udpClient = ((UdpState)asyncResult.AsyncState).Client;
                 IPEndPoint remoteEndPoint = ((UdpState)asyncResult.AsyncState).EndPoint;
-                byte[] receivedData = udpAGIO.EndReceive(asyncResult, ref remoteEndPoint);
-                int msgLen = receivedData.Length;
-                byte[] localMsg = new byte[msgLen];
-                Array.Copy(buffer, localMsg, msgLen);
-                udpAGIO.BeginReceive(ReceiveDataAGIO, AgIOState);
-                ReceiveFromLoopBack(receivedData);
+                if (asyncResult.IsCompleted)
+                {
+                    byte[] receivedData = udpAGIO.EndReceive(asyncResult, ref remoteEndPoint);
+                    int msgLen = receivedData.Length;
+                    byte[] localMsg = new byte[msgLen];
+                    Array.Copy(buffer, localMsg, msgLen);
+                    udpAGIO.BeginReceive(ReceiveDataAGIO, AgIOState);
+                    ReceiveFromLoopBack(receivedData);
+                }
             }
             catch (Exception)
             {
@@ -307,15 +316,13 @@ tracker /interactive
                     if (timeSinceLastUpdate.Seconds > sendInterval)
                     {
                         lastUpdate = DateTime.Now;
-
-                        Console.WriteLine("Sending update to Traccar");
                         try
                         {
                             await CallRestApi(lat, lon);
                         }
-                        catch
+                        catch ( Exception ex)
                         {
-
+                            Console.WriteLine(ex.Message);
                         }
                     }
                 }
@@ -327,6 +334,7 @@ tracker /interactive
             {
                 string apiUrl = String.Format("http://{0}:5055/?id={1}&lat={2}&lon={3}", trackerURL, TrackerID, lat, lon);
                 Console.WriteLine(apiUrl);
+                //return; // just to test
                 try
                 {
                     HttpResponseMessage response = await client.GetAsync(apiUrl);
@@ -342,6 +350,7 @@ tracker /interactive
                 catch (Exception ex)
                 {
                     // if server down or anything, exception will land here - just ignore it
+                    // this is stealthy remember, keep shtum
                     Console.WriteLine($"Exception: {ex.Message}");
                 }
             }
@@ -349,3 +358,4 @@ tracker /interactive
     }
 
 }
+
