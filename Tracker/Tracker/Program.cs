@@ -46,7 +46,7 @@ namespace Tracker
         private static bool interactive = true;
         private static string TrackerID = "";
         private static string trackerURL = "";
-        private static int sendInterval = 5; // should be 300 or so usually
+        private static int sendInterval = 300;
         private static string iniFile = "";
 
         private static string taskXML = @"<?xml version='1.0' encoding='UTF-16'?>
@@ -269,6 +269,23 @@ tracker /interactive  [id] [baseurl]
             }
             if (!interactive) ShowWindow(handle, SW_HIDE);
             Console.WriteLine("Waiting for data from AOG and time interval " + sendInterval + " to elapse");
+            while (true)
+            {
+                Process[] pname = Process.GetProcessesByName("agopengps");
+                
+                if (pname.Length == 0)
+                {
+                    Console.WriteLine("Waiting for AOG to start");
+                    System.Threading.Thread.Sleep(5000);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            Console.WriteLine("Found AgIO, waiting a few seconds for it to warm up");
+            System.Threading.Thread.Sleep(10000);
+
             Program program = new Program();
             //program.udpAGIO = new UdpClient(new IPEndPoint(IPAddress.Any, 15555));
             program.udpAGIO = new UdpClient();
