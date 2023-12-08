@@ -46,7 +46,7 @@ namespace Tracker
         private static bool interactive = true;
         private static string TrackerID = "";
         private static string trackerURL = "";
-        private static int sendInterval = 300;
+        private static int sendInterval = 30;
         private static string iniFile = "";
 
         private static string taskXML = @"<?xml version='1.0' encoding='UTF-16'?>
@@ -287,8 +287,8 @@ tracker /interactive  [id] [baseurl]
             System.Threading.Thread.Sleep(10000);
 
             Program program = new Program();
-            //program.udpAGIO = new UdpClient(new IPEndPoint(IPAddress.Any, 15555));
             program.udpAGIO = new UdpClient();
+            program.udpAGIO.ExclusiveAddressUse = false;
             program.udpAGIO.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             program.udpAGIO.Client.Bind(program.epAgIO);
 
