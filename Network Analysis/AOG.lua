@@ -154,7 +154,7 @@ local GGAFieldsProto = {}
 
 for _, fieldName in ipairs(PandaFields) do
     if fieldName == "FixQuality" then
-        field = ProtoField.int8("PANDA." .. fieldName, fieldName, base.STRING, FixQuality)
+        field = ProtoField.int8("PANDA." .. fieldName, fieldName, base.DEC, FixQuality)
     else
         field = ProtoField.string("PANDA." .. fieldName, fieldName, base.ASCII)
     end
@@ -162,7 +162,7 @@ for _, fieldName in ipairs(PandaFields) do
 end
 for _, fieldName in ipairs(PAOGIFields) do
     if fieldName == "FixQuality" then
-        field = ProtoField.int8("PAOGI." .. fieldName, fieldName, base.STRING, FixQuality)
+        field = ProtoField.int8("PAOGI." .. fieldName, fieldName, base.DEC, FixQuality)
     else
         field = ProtoField.string("PAOGI." .. fieldName, fieldName, base.ASCII)
     end
@@ -170,7 +170,7 @@ for _, fieldName in ipairs(PAOGIFields) do
 end
 for _, fieldName in ipairs(GGAFields) do
     if fieldName == "FixQuality" then
-        field = ProtoField.int8("GGA." .. fieldName, fieldName, base.STRING, FixQuality)
+        field = ProtoField.int8("GGA." .. fieldName, fieldName, base.DEC, FixQuality)
     else
         field = ProtoField.string("GGA." .. fieldName, fieldName, base.ASCII)
     end
