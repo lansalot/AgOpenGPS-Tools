@@ -267,7 +267,8 @@ tracker /interactive  [id] [baseurl]
                     Environment.Exit(1);
                 }
             }
-            if (!interactive) ShowWindow(handle, SW_HIDE);
+            // check if debugger is attached
+            if (!interactive || !System.Diagnostics.Debugger.IsAttached) ShowWindow(handle, SW_HIDE);
             Console.WriteLine("Waiting for data from AOG and time interval " + sendInterval + " to elapse");
             while (true)
             {
