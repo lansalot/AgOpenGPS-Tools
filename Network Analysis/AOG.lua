@@ -1,10 +1,8 @@
 -- TODO: dialog box to enter stuff wireshark can't know about (eg lightbar line distance)
-
 -- Place in \program filew\wireshark\plugins
-
-
 AOGProtocol_proto = Proto("AgOpenGPS", "AgOpenGPS Protocol")
 RTCMProtocol_proto = Proto("AgOpenGPSRTCM", "AgOpenGPS RTCM Protocol")
+ISOBUS_proto = Proto("AgISOStackTC", "AgISOStackTC")
 
 local MajorPGNs = {
     [0x7F] = "Steer module",
@@ -22,7 +20,7 @@ local CANDebugState = {
     [3] = "Enable filters"
 }
 
-local cooked 
+local cooked
 
 local AOGFields = {
     AOGID1 = ProtoField.uint8("AOGProtocol.AOGID1", "AOGID1", base.HEX),
@@ -70,7 +68,8 @@ local AOGFields = {
     asSteerSwitch = ProtoField.string("asSteerSwitch", "Steer Switch", base.STRING),
     asPWMDisplay = ProtoField.uint16("asPWMDisplay", "PWM Display", base.DEC),
 
-    SubNetScanConfirmation = ProtoField.bytes("SubNetScanConfirmation", "Subnet Scan Confirmation Signature (caca05)", base.NONE),
+    SubNetScanConfirmation = ProtoField.bytes("SubNetScanConfirmation", "Subnet Scan Confirmation Signature (caca05)",
+        base.NONE),
 
     PGN239_Uturn = ProtoField.uint8("PGN254_LineDistance", "Line Distance (raw)", base.DEC),
     PGN239_Speed = ProtoField.uint8("PGN239_Speed", "Speed", base.DEC),
@@ -79,7 +78,6 @@ local AOGFields = {
     PGN239_geoStop = ProtoField.uint8("PGN239_geoStop", "geoStop", base.DEC),
     PGN239_SC1to8 = ProtoField.uint8("PGN239_SC1to8", "SC1to8", base.HEX),
     PGN239_SC9to16 = ProtoField.uint8("PGN239_SC9to16", "SC9to16", base.HEX),
-
 
     PGN252_GainProportional = ProtoField.uint8("PGN239_PropGain", "Proportional Gain", base.DEC),
     PGN252_HighPWM = ProtoField.uint8("PGN239_HighPWN", "High PWM", base.DEC),
@@ -91,13 +89,12 @@ local AOGFields = {
 
     PGN253_ActualSteerAngle = ProtoField.int16("PGN253_ActualSteerAngle", "Actual Steer Angle", base.DEC),
 
-    PGN254_SpeedKM = ProtoField.uint16("PGN254_SpeedKM", "Speed (KM/h)", base.DEC),
+    PGN254_SpeedKM = ProtoField.string("PGN254_SpeedKM", "Speed (KM/h)", base.STRING),
     PGN254_Status = ProtoField.string("PGN254_Status", "Status", base.STRING),
     PGN254_SteerAngle = ProtoField.uint16("PGN254_SteerAngle", "Steer Angle", base.DEC),
     PGN254_LineDistance = ProtoField.uint8("PGN254_LineDistance", "Line Distance", base.DEC),
     PGN254_SC1to8 = ProtoField.uint8("PGN254_SC1to8", "SC1to8", base.HEX),
     PGN254_SC9to16 = ProtoField.uint8("PGN254_SC9to16", "SC9to16", base.HEX),
-
 
     genericIP = ProtoField.ipv4("GenericIP.IPv4", "IPv4", base.DEC),
     genericSubnet = ProtoField.ipv4("GenericIP.IPSubnet", "Subnet", base.DEC),
@@ -128,16 +125,16 @@ local function FormatTime(value)
     local minutes = string.sub(value, 3, 4)
     local seconds = string.sub(value, 5, 6)
     local milliseconds = string.sub(value, 8)
-    
+
     local formattedTime = hours .. ":" .. minutes .. ":" .. seconds .. "." .. milliseconds
     return formattedTime
 end
 
 local function AssembleIPRange(value)
     local v = tostring(value)
-    local b1 = tonumber("0x" .. string.sub(v,1,2))
-    local b2 = tonumber("0x" .. string.sub(v,3,4))
-    local b3 = tonumber("0x" .. string.sub(v,5,6))
+    local b1 = tonumber("0x" .. string.sub(v, 1, 2))
+    local b2 = tonumber("0x" .. string.sub(v, 3, 4))
+    local b3 = tonumber("0x" .. string.sub(v, 5, 6))
     local ret = b1 .. "." .. b2 .. "." .. b3
     return ret
 end
@@ -145,7 +142,8 @@ end
 local PandaFields = {"MessageType", "fixTime", "latitude", "LatNS", "longitude", "LonEW", "FixQuality", "numSats",
                      "HDOP", "Altitude", "AgeDGPS", "SpeedKnots", "imuHeading", "imuRoll", "imuYawRate", "StarChecksum"}
 local PAOGIFields = {"MessageType", "fixTime", "latitude", "LatNS", "longitude", "LonEW", "FixQuality", "numSats",
-                     "HDOP", "Altitude", "AgeDGPS", "SpeedKnots", "DualAntennaHeading", "DualAntennaRoll", "DualAntennaPitch", "DualAntennaYawRate", "StarChecksum"}
+                     "HDOP", "Altitude", "AgeDGPS", "SpeedKnots", "DualAntennaHeading", "DualAntennaRoll",
+                     "DualAntennaPitch", "DualAntennaYawRate", "StarChecksum"}
 local GGAFields = {"MessageType", "fixTime", "latitude", "LatNS", "longitude", "LonEW", "FixQuality", "numSats", "HDOP",
                    "AltitudeMSL", "--AltMSL", "HeightGeoid", "--AltHGE", "--Empty", "--Empty2", "StarChecksum"}
 local PandaFieldsProto = {}
@@ -198,11 +196,59 @@ local eInt16, encodedAngle
 -- and register those fields
 AOGProtocol_proto.fields = allFields
 
-function RTCMProtocol_proto.dissector(buffer,pinfo,tree)
+
+-- _              _
+--(_) ___   ___  | |__   _   _  ___
+--| |/ __| / _ \ | '_ \ | | | |/ __|
+--| |\__ \| (_) || |_) || |_| |\__ \
+--|_||___/ \___/ |_.__/  \__,_||___/
+
+local SectionState = {
+    [0] = "Disabled",
+    [1] = "Enabled"
+}
+local ISOBUSFields = {
+    ISOBUS_Section = ProtoField.uint8("ISOBUS_Section", "_", base.DEC, SectionState),
+}
+ISOBUS_proto.fields = ISOBUSFields
+
+function ISOBUS_proto.dissector(buffer, pinfo, tree)
+    local subtree = tree:add(ISOBUS_proto, buffer(), "ISOBUS Section info")
+    pinfo.cols.info = "AgIsoStack Section Info"
+    pinfo.cols.protocol = "AgIsoStack ISOBUS"
+    local SRC = buffer(2, 1):uint()
+    local PGN = buffer(3, 1):uint()
+    if (SRC == 0x7F and PGN == 0xE6) then
+        local length = buffer(4, 1):uint()
+        local data_start = 5
+        for sectionIndex = 1, length do -- let's make the section IDs relatable, based at 1
+            local sectionByte = buffer(data_start + sectionIndex - 1, 1):uint()
+            local sectionLabel = string.format("Section %d: %s", sectionIndex, SectionState[sectionByte] or "Unknown state")
+            subtree:add((" (" .. sectionLabel .. ")")
+        )
+        end
+    end
+end
+
+
+--       _
+-- _ __ | |_   ___  _ __ ___
+--| '__|| __| / __|| '_ ` _ \
+--| |   | |_ | (__ | | | | | |
+--|_|    \__| \___||_| |_| |_|
+function RTCMProtocol_proto.dissector(buffer, pinfo, tree)
     local subtree = tree:add(RTCMProtocol_proto, buffer(), "RTCM (NTRIP) data (not decoded)")
     pinfo.cols.info = "RTCM (NTRIP to F9P)"
     pinfo.cols.protocol = "RTCM"
 end
+
+
+
+--__ _   ___    __ _
+--/ _` | / _ \  / _` |
+--| (_| || (_) || (_| |
+--\__,_| \___/  \__, |
+--              |___/
 
 function AOGProtocol_proto.dissector(buffer, pinfo, tree)
 
@@ -315,7 +361,6 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
         end
         pinfo.cols.info = "AOG GGA Location response"
 
-
     elseif byte1 == 0x80 and byte2 == 0x81 then -- we're into PGNs from AOG now
         if MajorPGN == 0x7f then -- steer module
             if MinorPGN == 0xaa then -- 170
@@ -335,11 +380,11 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 pinfo.cols.info = "Hello from AgOpenGPS to all!"
             end
             if MinorPGN == 0xc9 then -- 201
-                subtree:add(AOGFields.genericIP,buffer(7,4))
+                subtree:add(AOGFields.genericIP, buffer(7, 4))
                 pinfo.cols.info = "Subnet change"
             end
             if MinorPGN == 0xca then -- 202
-                subtree:add(AOGFields.SubNetScanConfirmation,buffer(5,3))
+                subtree:add(AOGFields.SubNetScanConfirmation, buffer(5, 3))
                 pinfo.cols.info = "Subnet scan request"
             end
             if MinorPGN == 0xcb then -- 203 THIS DOESN'T LOOK LIKE REQUIRED HERE, IT'S A 7E REPLY IN CODE
@@ -357,22 +402,22 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 subtree:add(AOGFields.pivotAlt, (eInt16 * 0.01))
             end
             if MinorPGN == 0xd3 then -- e211
-                cooked = buffer(5,2):le_uint() * 0.1
+                cooked = buffer(5, 2):le_uint() * 0.1
                 subtree:add(AOGFields.extIMUHeading, cooked)
-                cooked = buffer(7,2):le_uint() * 0.1
+                cooked = buffer(7, 2):le_uint() * 0.1
                 subtree:add(AOGFields.extIMURoll, cooked)
-                cooked = buffer(9,2):le_uint() / -2
+                cooked = buffer(9, 2):le_uint() / -2
                 subtree:add(AOGFields.extIMUAngVel, cooked)
                 pinfo.cols.info = "External IMU"
             end
             if MinorPGN == 0xd4 then -- 212
                 pinfo.cols.info = "External IMU disconnect"
             end
-            
+
             if MinorPGN == 0xe5 then -- 229
                 pinfo.cols.info = "64 Section on/off"
             end
-            
+
             if MinorPGN == 0xe7 then -- 231
                 pinfo.cols.info = "Tool Settings"
             end
@@ -389,18 +434,18 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 pinfo.cols.info = "From Machine Module"
             end
             if MinorPGN == 0xee then -- 238
-                pinfo.cols.info = "Machine config"
+                pinfo.cols.info = "Machine config user data"
             end
             if MinorPGN == 0xef then -- 239
-                subtree:add(AOGFields.PGN239_Uturn, buffer(5,1))
-                subtree:add(AOGFields.PGN239_Speed, buffer(6,1))
-                subtree:add(AOGFields.PGN239_HydLift, buffer(7,1))
-                subtree:add(AOGFields.PGN239_Tram, buffer(8,1))
-                subtree:add(AOGFields.PGN239_geoStop, buffer(9,1))
+                subtree:add(AOGFields.PGN239_Uturn, buffer(5, 1))
+                subtree:add(AOGFields.PGN239_Speed, buffer(6, 1))
+                subtree:add(AOGFields.PGN239_HydLift, buffer(7, 1))
+                subtree:add(AOGFields.PGN239_Tram, buffer(8, 1))
+                subtree:add(AOGFields.PGN239_geoStop, buffer(9, 1))
                 -- 10 is commented out in AOG for some reason
-                subtree:add(AOGFields.PGN239_SC1to8, buffer(11,1))
-                subtree:add(AOGFields.PGN239_SC9to16, buffer(12,1))
-                pinfo.cols.info = "From AutoSteer sensors"
+                subtree:add(AOGFields.PGN239_SC1to8, buffer(11, 1))
+                subtree:add(AOGFields.PGN239_SC9to16, buffer(12, 1))
+                pinfo.cols.info = "Machine Data"
             end
             if MinorPGN == 0xfa then -- 250
                 pinfo.cols.info = "Steer config (not used in AOG much)"
@@ -409,32 +454,32 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 pinfo.cols.info = "Autosteer steer config"
             end
             if MinorPGN == 0xfc then -- 252
-                subtree:add(AOGFields.PGN252_GainProportional, buffer(5,1))
-                subtree:add(AOGFields.PGN252_HighPWM, buffer(6,1))
-                subtree:add(AOGFields.PGN252_LowPWM, buffer(7,1))
-                subtree:add(AOGFields.PGN252_MinPWM, buffer(8,1))
-                subtree:add(AOGFields.PGN252_CPD, buffer(9,1))
-                subtree:add(AOGFields.PGN252_WasOffset, buffer(10,2))
-                subtree:add(AOGFields.PGN252_Ackerman, buffer(12,1))
+                subtree:add(AOGFields.PGN252_GainProportional, buffer(5, 1))
+                subtree:add(AOGFields.PGN252_HighPWM, buffer(6, 1))
+                subtree:add(AOGFields.PGN252_LowPWM, buffer(7, 1))
+                subtree:add(AOGFields.PGN252_MinPWM, buffer(8, 1))
+                subtree:add(AOGFields.PGN252_CPD, buffer(9, 1))
+                subtree:add(AOGFields.PGN252_WasOffset, buffer(10, 2))
+                subtree:add(AOGFields.PGN252_Ackerman, buffer(12, 1))
 
                 pinfo.cols.info = "Steer settings (from AgIO)"
             end
             if MinorPGN == 0xfd then -- 253
                 pinfo.cols.info = "Steer settings (returned from Teensy)"
-                cooked = buffer(5,2):le_uint() * 0.1
+                cooked = buffer(5, 2):le_uint() * 0.1
                 subtree:add(AOGFields.asActualSteeringChart, cooked)
-                cooked = buffer(7,2):le_uint() --* 0.1
+                cooked = buffer(7, 2):le_uint() -- * 0.1
                 subtree:add(AOGFields.asHeading, cooked)
-                cooked = buffer(9,2):le_uint() --* 0.1
+                cooked = buffer(9, 2):le_uint() -- * 0.1
                 subtree:add(AOGFields.asRollK, cooked)
-                --print("buffer ",buffer(11,1))
-                if isBitSet(buffer(11,1):int(),1) then
+                -- print("buffer ",buffer(11,1))
+                if isBitSet(buffer(11, 1):int(), 1) then
                     subtree:add(AOGFields.asSteerSwitch, "Set")
                 else
                     subtree:add(AOGFields.asSteerSwitch, "Unset")
                 end
-                --print("!")
-                if isBitSet(buffer(11,1):int(),2) then
+                -- print("!")
+                if isBitSet(buffer(11, 1):int(), 2) then
                     subtree:add(AOGFields.asWorkSwitch, "Set")
                 else
                     subtree:add(AOGFields.asWorkSwitch, "Unset")
@@ -443,16 +488,17 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
 
             end
             if MinorPGN == 0xfe then -- 254
-                subtree:add(AOGFields.PGN254_SpeedKM ,buffer(5,2):le_uint() / 10)
-                if buffer(7,1):int() == 1 then
+                local speed = buffer(5, 2):le_uint() / 10
+                subtree:add(AOGFields.PGN254_SpeedKM, buffer(5, 2), string.format("%.1f km/h", speed))
+                if buffer(7, 1):int() == 1 then
                     subtree:add(AOGFields.PGN254_Status, "On")
                 else
                     subtree:add(AOGFields.PGN254_Status, "Off")
                 end
-                subtree:add(AOGFields.PGN254_SteerAngle ,buffer(8,2):le_uint())
-                subtree:add(AOGFields.PGN254_LineDistance ,buffer(10,1))
-                subtree:add(AOGFields.PGN254_SC1to8 ,buffer(11,1))
-                subtree:add(AOGFields.PGN254_SC9to16 ,buffer(12,1))
+                subtree:add(AOGFields.PGN254_SteerAngle, buffer(8, 2):le_uint())
+                subtree:add(AOGFields.PGN254_LineDistance, buffer(10, 1))
+                subtree:add(AOGFields.PGN254_SC1to8, buffer(11, 1))
+                subtree:add(AOGFields.PGN254_SC9to16, buffer(12, 1))
                 pinfo.cols.info = "Steer data (from AgIO)"
             end
         end
@@ -460,8 +506,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
         if MajorPGN == 0x78 then -- From GPS module 120
         end
 
-
-        if MajorPGN == 0x79 then 
+        if MajorPGN == 0x79 then
             if MinorPGN == 0x79 then
                 pinfo.cols.info = "Hello from IMU!"
             end
@@ -472,6 +517,9 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
         if MajorPGN == 0x7b then -- Machine Module 123 
             subtree:add(AOGFields.genericIP, buffer(5, 4))
             subtree:add(AOGFields.genericSubnet, buffer(9, 3))
+            if MinorPGN == 0x7b then -- 123
+                pinfo.cols.info = "Hello from Machine board!"
+            end
             pinfo.cols.info = "Machine Info"
         end
 
@@ -501,13 +549,12 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 -- hol' up, wait a minute, somethin ain't right!
                 -- Shouldn't this be a Major 7F response????
                 -- not enough fields coming back??? eh??? and IP isn't right either!
-                subtree:add(AOGFields.genericIP, buffer(5,4))
-                --print("7e says " .. buffer(5,4))
-                --subtree:add(AOGFields.genericSubnet, buffer(9))
+                subtree:add(AOGFields.genericIP, buffer(5, 4))
+                -- print("7e says " .. buffer(5,4))
+                -- subtree:add(AOGFields.genericSubnet, buffer(9))
                 pinfo.cols.info2 = "Subnet Scan Reply"
             end
         end
-
 
         if MajorPGN == 0x7e then
             if MinorPGN == 0x7e then
@@ -518,8 +565,8 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
             subtree:add(SteerData.Speed, buffer(4, 2))
         end
     elseif byte1 == 0x80 and byte2 == 0x99 then -- freeform message from Teensy!
-        pinfo.cols.info = "AOG: " .. buffer(2,buffer:len() - 2):string()
-        subtree:add(AOGFields.freeFormMessage, buffer(2,buffer:len() - 2))
+        pinfo.cols.info = "AOG: " .. buffer(2, buffer:len() - 2):string()
+        subtree:add(AOGFields.freeFormMessage, buffer(2, buffer:len() - 2))
     end
     -- Set the protocol description in the packet details pane
     pinfo.cols.protocol = AOGProtocol_proto.name
@@ -530,4 +577,5 @@ end
 local udp_port = DissectorTable.get("udp.port")
 udp_port:add(9999, AOGProtocol_proto)
 udp_port:add(2233, RTCMProtocol_proto)
+udp_port:add(8889, ISOBUS_proto)
 
