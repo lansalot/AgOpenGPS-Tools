@@ -220,10 +220,10 @@ function AOGTSProtocol_proto.dissector(buffer, pinfo, tree)
     local byte1 = buffer(0, 1):uint()
     local byte2 = buffer(1, 1):uint()
     local MajorPGN = buffer(2, 1):uint()
-    if (byte1 ~= 0x80 or byte2 ~= 0x81 or MajorPGN ~= 0x7f) then
-        return
-    end
     local MinorPGN = buffer(3, 1):uint()
+    -- if (byte1 ~= 0x80 or byte2 ~= 0x81 or MajorPGN ~= 0x7f) then
+    --     return
+    -- end
     -- subtree:add(AOGFields.AOGID, buffer(0, 2))
     -- subtree:add(AOGFields.MajorPGN, buffer(2, 1))
     -- subtree:add(AOGFields.MinorPGN, buffer(3, 1))
@@ -231,6 +231,10 @@ function AOGTSProtocol_proto.dissector(buffer, pinfo, tree)
     pinfo.cols.protocol = "AOG Tool Steer"
     local SRC = buffer(2, 1):uint()
     local PGN = buffer(3, 1):uint()
+    if (MajorPGN == 0xe2 and MinorPGN == 0xcb) then
+        pinfo.cols.info = "Subnet scan reply (tool steer)"
+    end
+    -- WTF this doing in here???
     if MinorPGN == 0xae then -- 174
         pinfo.cols.info = "UDP free text message"
         subtree:add(AOGFields.freeFormMessage, buffer(4, buffer:len() - 4))
@@ -328,7 +332,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
     subtree:add(AOGFields.AOGID, buffer(0, 2))
     subtree:add(AOGFields.MajorPGN, buffer(2, 1))
     subtree:add(AOGFields.MinorPGN, buffer(3, 1))
-    if (byte1 == 0x24 and byte2 == 0x50 and MinorPGN == 0x4e) then -- PANDA
+    if (byte1 == 0x24 and byte2 == 0x50 and (MinorPGN == 0x4e or MinorPGN == 0x4f)) then -- PANDA
         local PandaString = buffer(0):string()
         local values = {}
         for value in PandaString:gmatch("[^,]+") do
@@ -355,7 +359,11 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
         for i, value in ipairs(values) do
             subtree:add(PandaFieldsProto[i], values[i])
         end
-        pinfo.cols.info = "AOG PANDA Location"
+        if (MinorPGN == 0x4e) then 
+            pinfo.cols.info = "AOG PANDA Location"
+        else
+            pinfo.cols.info = "AOG Tool Steer Location"
+        end
     elseif (byte1 == 0x24 and byte2 == 0x50 and MinorPGN == 0x4f) then -- PAOGI
         local PAOGIString = buffer(0):string()
         local values = {}
@@ -479,7 +487,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 pinfo.cols.info = "Subnet scan request"
             end
             if MinorPGN == 0xcb then -- 203 THIS DOESN'T LOOK LIKE REQUIRED HERE, IT'S A 7E REPLY IN CODE
-                pinfo.cols.info = "Subnet scan reply"
+                pinfo.cols.info = "Subnet scan reply (PCB)"
             end
             if MinorPGN == 0xd0 then -- 208
                 pinfo.cols.info = "Corrected GPS data"
@@ -631,7 +639,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
             if MinorPGN == 0xcb then
                 subtree:add(AOGFields.genericIP, buffer(5, 4))
                 subtree:add(AOGFields.genericShortIPRange, AssembleIPRange(buffer(5, 3)))
-                pinfo.cols.info = "Subnet scan reply"
+                pinfo.cols.info = "Subnet scan reply (PCB)"
             end
             if MinorPGN == 0xdd then
                 subtree:add(AOGFields.freeFormMessage, buffer(7, buffer:len() - 8))
@@ -654,7 +662,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
                 subtree:add(AOGFields.genericIP, buffer(5, 4))
                 -- print("7e says " .. buffer(5,4))
                 -- subtree:add(AOGFields.genericSubnet, buffer(9))
-                pinfo.cols.info2 = "Subnet Scan Reply"
+                pinfo.cols.info2 = "Subnet Scan Reply (PCB)"
             end
         end
 
@@ -679,6 +687,7 @@ end
 local udp_port = DissectorTable.get("udp.port")
 udp_port:add(8888, AOGProtocol_proto)
 udp_port:add(18888, AOGTSProtocol_proto)
+udp_port:add(19999, AOGProtocol_proto)
 udp_port:add(2233, RTCMProtocol_proto)
 -- udp_port:add(8888, ISOBUS_proto)
 
