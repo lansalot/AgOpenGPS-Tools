@@ -35,6 +35,20 @@ end
 
 local cooked
 
+local toolSteerFields = {
+    gainP = ProtoField.uint8("AOGTSProtocol_proto.gainP", "Gain P", base.DEC),
+    integral = ProtoField.uint8("AOGTSProtocol_proto.integral", "Integral", base.DEC),
+    minPWM = ProtoField.uint8("AOGTSProtocol_proto.minPWM", "Min PWM", base.DEC),
+    highPWM = ProtoField.uint8("AOGTSProtocol_proto.highPWM", "High PWM", base.DEC),
+    offsetAPOS = ProtoField.int16("AOGTSProtocol_proto.offsetAPOS", "Offset APOS", base.DEC),
+    lowHighDistance = ProtoField.uint8("AOGTSProtocol_proto.lowHighDistance", "Low High Distance", base.DEC),
+    cytronDriver = ProtoField.uint8("AOGTSProtocol_proto.cytronDriver", "Cytron Driver", base.DEC),
+    invertAPOS = ProtoField.uint8("AOGTSProtocol_proto.invertAPOS", "Invert APOS", base.DEC),
+    invertActuator = ProtoField.uint8("AOGTSProtocol_proto.invertActuator", "Invert Actuator", base.DEC),
+    maxActuatorLimit = ProtoField.uint8("AOGTSProtocol_proto.maxActuatorLimit", "Max Actuator Limit", base.DEC),
+    isBangBang = ProtoField.uint8("AOGTSProtocol_proto.isBangBang", "Is Bang Bang", base.DEC)
+}
+
 local AOGFields = {
     AOGID = ProtoField.uint16("AOGProtocol.AOGID", "AOGID", base.HEX),
     -- AOGID2 = ProtoField.uint8("AOGProtocol.AOGID2", "AOGID2", base.HEX),
@@ -108,6 +122,13 @@ local AOGFields = {
     PGN254_LineDistance = ProtoField.uint8("PGN254_LineDistance", "Line Distance", base.DEC),
     PGN254_SC1to8 = ProtoField.uint8("PGN254_SC1to8", "SC1to8", base.HEX),
     PGN254_SC9to16 = ProtoField.uint8("PGN254_SC9to16", "SC9to16", base.HEX),
+
+    PGN230_steerActual = ProtoField.float("PGN230_steerActual", "Tool Steering Actual", base.DEC),
+    PGN230_tce = ProtoField.float("PGN230_toolCorrectionError", "Tool Correction Error", base.DEC),
+    PGN230_heading = ProtoField.float("PGN230_Heading", "Tool Heading", base.DEC),
+    PGN230_roll = ProtoField.float("PGN230_Roll", "Tool Roll", base.DEC),
+    PGN230_switch = ProtoField.int8("PGN230_Switch", "Tool Switch", base.DEC),
+    PGN230_pwmDisplay = ProtoField.int8("PGN230_pwmDisplay", "Tool PWM Display", base.DEC),
 
     genericIP = ProtoField.ipv4("GenericIP.IPv4", "IPv4", base.DEC),
     genericSubnet = ProtoField.ipv4("GenericIP.IPSubnet", "Subnet", base.DEC),
@@ -192,7 +213,10 @@ end
 local allFields = {}
 for key, value in pairs(AOGFields) do
     table.insert(allFields, value)
-    -- allFields[key] = value
+end
+
+for key, value in pairs(toolSteerFields) do
+    table.insert(allFields, value)
 end
 
 for key, value in pairs(PandaFieldsProto) do
@@ -221,16 +245,15 @@ function AOGTSProtocol_proto.dissector(buffer, pinfo, tree)
     local byte2 = buffer(1, 1):uint()
     local MajorPGN = buffer(2, 1):uint()
     local MinorPGN = buffer(3, 1):uint()
-    -- if (byte1 ~= 0x80 or byte2 ~= 0x81 or MajorPGN ~= 0x7f) then
-    --     return
-    -- end
+    if (byte1 ~= 0x80 or byte2 ~= 0x81) then
+        return
+    end
     -- subtree:add(AOGFields.AOGID, buffer(0, 2))
     -- subtree:add(AOGFields.MajorPGN, buffer(2, 1))
     -- subtree:add(AOGFields.MinorPGN, buffer(3, 1))
-    pinfo.cols.info = "AOG Tool Steer"
-    pinfo.cols.protocol = "AOG Tool Steer"
-    local SRC = buffer(2, 1):uint()
-    local PGN = buffer(3, 1):uint()
+    -- pinfo.cols.info = "AOG Tool Steer"
+    -- pinfo.cols.protocol = "AOG Tool Steer"
+    -- print(string.format("Tool Steer PGN: %02x %02x", MajorPGN, MinorPGN))
     if (MajorPGN == 0xe2 and MinorPGN == 0xcb) then
         pinfo.cols.info = "Subnet scan reply (tool steer)"
     end
@@ -239,7 +262,15 @@ function AOGTSProtocol_proto.dissector(buffer, pinfo, tree)
         pinfo.cols.info = "UDP free text message"
         subtree:add(AOGFields.freeFormMessage, buffer(4, buffer:len() - 4))
     end
-    if (SRC == 0x70 and PGN == 0x00) then
+    if (MajorPGN == 0xe2 and MinorPGN == 0xe6) then
+        pinfo.cols.info = "Tool steer return info"
+        subtree:add(AOGFields.PGN230_steerActual, buffer(5, 2):le_int() * 0.01)
+        subtree:add(AOGFields.PGN230_heading, buffer(7, 2):le_int() * 0.01)
+        subtree:add(AOGFields.PGN230_roll, buffer(9, 2):le_int() * 0.1)
+        subtree:add(AOGFields.PGN230_switch, buffer(11, 1))
+        subtree:add(AOGFields.PGN230_pwmDisplay, buffer(12, 1))
+    end
+    if (MajorPGN == 0x70 and MinorPGN == 0x00) then
         local length = buffer(4, 1):uint()
         local data_start = 5
         for sectionIndex = 0, (length - 1) * 2, 2 do -- let's make the section IDs relatable, based at 1
@@ -253,6 +284,23 @@ function AOGTSProtocol_proto.dissector(buffer, pinfo, tree)
             --     SectionState[stateIndex])
             subtree:add((" (" .. sectionLabel .. ")"))
         end
+    end
+    if (MajorPGN == 0x7f and MinorPGN == 0xe9) then
+        pinfo.cols.info = "Tool steer general?"
+    end
+    if (MajorPGN == 0x7f and MinorPGN == 0xe8) then
+        pinfo.cols.info = "Tool steer settings"
+        subtree:add(toolSteerFields.gainP, buffer(5, 1))
+        subtree:add(toolSteerFields.integral, buffer(6, 1))
+        subtree:add(toolSteerFields.minPWM, buffer(7, 1))
+        subtree:add(toolSteerFields.highPWM, buffer(8, 1))
+        subtree:add(toolSteerFields.offsetAPOS, buffer(9, 2))
+        subtree:add(toolSteerFields.lowHighDistance, buffer(11, 1))
+        subtree:add(toolSteerFields.cytronDriver, buffer(12, 1))
+        subtree:add(toolSteerFields.invertAPOS, buffer(13, 1))
+        subtree:add(toolSteerFields.invertActuator, buffer(14, 1))
+        subtree:add(toolSteerFields.maxActuatorLimit, buffer(15, 1))
+        subtree:add(toolSteerFields.isBangBang, buffer(16, 1))
     end
 end
 -- _              _
@@ -359,7 +407,7 @@ function AOGProtocol_proto.dissector(buffer, pinfo, tree)
         for i, value in ipairs(values) do
             subtree:add(PandaFieldsProto[i], values[i])
         end
-        if (MinorPGN == 0x4e) then 
+        if (MinorPGN == 0x4e) then
             pinfo.cols.info = "AOG PANDA Location"
         else
             pinfo.cols.info = "AOG Tool Steer Location"
